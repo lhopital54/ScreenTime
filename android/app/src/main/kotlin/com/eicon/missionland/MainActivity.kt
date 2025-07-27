@@ -1,4 +1,4 @@
-package com.example.missionland
+package com.eicon.missionland
 
 import io.flutter.embedding.android.FlutterActivity
 

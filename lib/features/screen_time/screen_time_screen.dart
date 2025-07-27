@@ -1,0 +1,518 @@
+// features/screen_time/screen_time_screen.dart
+import 'package:flutter/material.dart';
+import 'data/usage_data.dart';
+import 'data/app_info_data.dart';
+import 'models/app_info.dart';
+import 'widgets/app_lock.dart';
+import 'widgets/daily_chart.dart';
+import 'widgets/app_limit.dart';
+import 'widgets/weekly_chart.dart';
+
+class ScreenTimeScreen extends StatefulWidget {
+  @override
+  _ScreenTimeScreenState createState() => _ScreenTimeScreenState();
+}
+
+class _ScreenTimeScreenState extends State<ScreenTimeScreen>
+    with SingleTickerProviderStateMixin {
+  late TabController _subTabController;
+
+  bool isAppLocked = false;
+  UsageData? usageData;
+
+  @override
+  void initState() {
+    super.initState();
+    _subTabController = TabController(length: 2, vsync: this);
+    _checkPermissionAndLoadData();
+  }
+
+  @override
+  void dispose() {
+    _subTabController.dispose();
+    super.dispose();
+  }
+
+  void _checkPermissionAndLoadData() async {
+    // 사용량 권한 확인
+    bool hasPermission = await AppInfoData.checkUsagePermission();
+    if (!hasPermission) {
+      _showPermissionDialog();
+    } else {
+      _loadData();
+    }
+  }
+
+  void _showPermissionDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.security, color: Colors.orange[600], size: 24),
+              const SizedBox(width: 8),
+              const Text('권한 필요'),
+            ],
+          ),
+          content: const Text(
+            '실제 앱 사용량을 확인하려면 사용량 접근 권한이 필요합니다.\n'
+            '설정에서 권한을 허용해주세요.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _loadData(); // 권한 없이 샘플 데이터로 진행
+              },
+              child: const Text('나중에'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                await AppInfoData.requestUsagePermission();
+                _loadData();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green[400],
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('권한 설정'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _loadData() async {
+    final data = await UsageData.loadFromStorage();
+    setState(() {
+      usageData = data;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (usageData == null) {
+      return SafeArea(
+        child: Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Colors.green[400]!),
+          ),
+        ),
+      );
+    }
+
+    return SafeArea(
+      child: Column(
+        children: [
+          // 상단 제목과 서브 탭
+          Container(
+            color: Colors.white,
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+                  child: Row(
+                    children: [
+                      Text(
+                        'Climate Screen Time',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green[700],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // 서브 탭바 (Daily/Weekly)
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 20),
+                  height: 36, // 높이를 더 낮게 설정
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(18), // 높이의 절반으로 설정
+                  ),
+                  child: TabBar(
+                    controller: _subTabController,
+                    indicator: BoxDecoration(
+                      borderRadius: BorderRadius.circular(18),
+                      color: Colors.green[400],
+                    ),
+                    indicatorSize: TabBarIndicatorSize.tab, // 탭 전체 크기로 설정
+                    labelColor: Colors.white,
+                    unselectedLabelColor: Colors.grey[600],
+                    labelStyle: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    unselectedLabelStyle: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.normal,
+                    ),
+                    dividerColor: Colors.transparent,
+                    tabs: const [
+                      Tab(
+                        height: 36, // 탭 높이 설정
+                        text: 'Daily',
+                      ),
+                      Tab(
+                        height: 36, // 탭 높이 설정
+                        text: 'Weekly',
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 10),
+              ],
+            ),
+          ),
+          // 탭 콘텐츠
+          Expanded(
+            child: TabBarView(
+              controller: _subTabController,
+              children: [
+                _buildDailyTab(),
+                _buildWeeklyTab(),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDailyTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AppLock(
+            isAppLocked: isAppLocked,
+            onToggle: () {
+              setState(() {
+                isAppLocked = !isAppLocked;
+              });
+            },
+          ),
+          const SizedBox(height: 30),
+          DailyChart(
+            usageData: usageData!,
+            onLimitTap: _showDailyLimitDialog,
+          ),
+          const SizedBox(height: 30),
+          AppLimit(
+            appInfos: usageData!.appInfos,
+            onAppTap: _showAppLimitDialog,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWeeklyTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildWeeklySummary(),
+          const SizedBox(height: 30),
+          WeeklyChart(usageData: usageData!),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWeeklySummary() {
+    final double averageDaily = usageData!.averageDailyEmissions;
+    final double weeklyLimit = usageData!.weeklyLimit;
+    final bool isOverWeeklyLimit = usageData!.isOverWeeklyLimit;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(
+          color: isOverWeeklyLimit ? Colors.red[300]! : Colors.transparent,
+          width: 2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withValues(alpha: 0.1),
+            spreadRadius: 2,
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '이번 주 탄소 배출량',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[800],
+            ),
+          ),
+          const SizedBox(height: 15),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '총 배출량',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  Text(
+                    '${usageData!.totalWeeklyEmissions.toStringAsFixed(1)}g CO2',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: isOverWeeklyLimit
+                          ? Colors.red[600]
+                          : Colors.grey[800],
+                    ),
+                  ),
+                ],
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '일평균',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  Text(
+                    '${averageDaily.toStringAsFixed(1)}g CO2',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.green[600],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 15),
+          LinearProgressIndicator(
+            value: (usageData!.totalWeeklyEmissions / weeklyLimit).clamp(0.0, 1.0),
+            backgroundColor: Colors.grey[200],
+            valueColor: AlwaysStoppedAnimation<Color>(
+              isOverWeeklyLimit ? Colors.red[400]! : Colors.green[400]!,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '주간 목표: ${weeklyLimit.toStringAsFixed(1)}g CO2',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey[600],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDailyLimitDialog() {
+    double newLimit = usageData!.dailyCarbonLimit;
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Row(
+                children: [
+                  Icon(Icons.eco, color: Colors.green[600], size: 24),
+                  const SizedBox(width: 8),
+                  const Text('일일 탄소 배출량 한계 설정'),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '현재 배출량: ${usageData!.totalDailyEmissions.toStringAsFixed(1)}g CO2',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[700],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '권장 일일 한계: 150-250g CO2',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    '일일 한계량: ${newLimit.toStringAsFixed(1)}g CO2',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.green[700],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Slider(
+                    value: newLimit,
+                    min: 100,
+                    max: 400,
+                    divisions: 300,
+                    activeColor: Colors.green[400],
+                    inactiveColor: Colors.grey[300],
+                    onChanged: (value) {
+                      setDialogState(() {
+                        newLimit = value;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  Container(
+                    height: 8,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(4),
+                      color: Colors.grey[200],
+                    ),
+                    child: FractionallySizedBox(
+                      alignment: Alignment.centerLeft,
+                      widthFactor:
+                          (usageData!.totalDailyEmissions / newLimit).clamp(0.0, 1.0),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(4),
+                          color: usageData!.totalDailyEmissions > newLimit
+                              ? Colors.red[400]
+                              : Colors.green[400],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    usageData!.totalDailyEmissions > newLimit
+                        ? '⚠️ 현재 배출량이 한계를 초과합니다'
+                        : '✅ 현재 배출량이 한계 내에 있습니다',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: usageData!.totalDailyEmissions > newLimit
+                          ? Colors.red[600]
+                          : Colors.green[600],
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: Text(
+                    '취소',
+                    style: TextStyle(color: Colors.grey[600]),
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      usageData = usageData!.updateDailyLimit(newLimit);
+                    });
+                    Navigator.of(context).pop();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green[400],
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('저장'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showAppLimitDialog(AppInfo app) {
+    double newLimit = app.limit;
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Text('${app.name} 제한 설정'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                      '현재 배출량: ${app.currentEmission.toStringAsFixed(1)}g CO2'),
+                  Text(
+                      '사용시간: ${app.currentUsage.toStringAsFixed(1)}분'),
+                  Text(
+                      '배출계수: ${app.emitRate}g/시간'),
+                  const SizedBox(height: 20),
+                  Text('일일 제한량: ${newLimit.toStringAsFixed(1)}g CO2'),
+                  const SizedBox(height: 10),
+                  Slider(
+                    value: newLimit,
+                    min: 50,
+                    max: 500,
+                    divisions: 450,
+                    activeColor: Colors.green[400],
+                    onChanged: (value) {
+                      setDialogState(() {
+                        newLimit = value;
+                      });
+                    },
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text('취소'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    setState(() {
+                      usageData = usageData!.updateAppLimit(app.id, newLimit);
+                    });
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text('저장'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+}
