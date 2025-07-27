@@ -19,7 +19,6 @@ class UsageData {
     required this.appInfos,
   });
 
-  // 계산된 값들
   double get totalDailyEmissions => 
       dailyEmissions.fold(0.0, (sum, emission) => sum + emission);
 
@@ -35,13 +34,10 @@ class UsageData {
 
   bool get isOverWeeklyLimit => totalWeeklyEmissions > weeklyLimit;
 
-  // 일일 배출량 진행률 (0.0 ~ 1.0+)
   double get dailyProgress => totalDailyEmissions / dailyCarbonLimit;
 
-  // 주간 배출량 진행률 (0.0 ~ 1.0+)
   double get weeklyProgress => totalWeeklyEmissions / weeklyLimit;
 
-  // 최고/최저 배출 시간대 (일일)
   DailyPeak get dailyPeak {
     if (dailyEmissions.isEmpty) {
       return DailyPeak(
@@ -76,7 +72,6 @@ class UsageData {
     );
   }
 
-  // 최고/최저 배출 요일 (주간)
   WeeklyPeak get weeklyPeak {
     if (weeklyEmissions.isEmpty) {
       return WeeklyPeak(
@@ -111,15 +106,12 @@ class UsageData {
     );
   }
 
-  // 앱별 한계 초과 목록
   List<AppInfo> get overLimitApps =>
       appInfos.where((app) => app.isOverLimit).toList();
 
-  // 앱별 총 배출량
   double get totalAppEmissions =>
       appInfos.fold(0.0, (sum, app) => sum + app.currentEmission);
 
-  // 데이터 업데이트 메서드들 (불변성 유지)
   UsageData updateDailyLimit(double newLimit) {
     return UsageData(
       dailyEmissions: dailyEmissions,
@@ -149,9 +141,8 @@ class UsageData {
     );
   }
 
-  // 실제 사용량 데이터 로딩
   static Future<UsageData> loadFromStorage() async {
-    // 실제 앱 사용량 데이터 가져오기
+
     List<AppInfo> realAppInfos = await AppInfoData.getRealUsageData();
     List<double> realDailyEmissions = await AppInfoData.getHourlyUsageData();
     
@@ -159,15 +150,15 @@ class UsageData {
       dailyEmissions: realDailyEmissions,
       timeLabels: ['00-04', '04-08', '08-12', '12-16', '16-20', '20-24'],
       weeklyEmissions: [85.2, 92.1, 78.5, 105.3, 68.9, 95.7, 86.7],
-      weekDays: ['월', '화', '수', '목', '금', '토', '일'],
+      weekDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
       dailyCarbonLimit: 500,
       appInfos: realAppInfos,
     );
   }
 
-  // 데이터 저장 (실제로는 아무것도 안함)
+  // saving data(but do nothing)
   Future<void> saveToStorage() async {
-    // 저장 로직 여기에 구현(할예정...........)
+    // will do soon.................
   }
 
   @override
@@ -178,7 +169,6 @@ class UsageData {
   }
 }
 
-// 보조 데이터 클래스들
 class DailyPeak {
   final int peakTimeIndex;
   final double peakValue;

@@ -28,7 +28,7 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
-  int _selectedBottomTabIndex = 2; // 스크린타임 탭 (3번째)
+  int _selectedBottomTabIndex = 2;
 
   @override
   Widget build(BuildContext context) {
@@ -93,22 +93,22 @@ class _MainScreenState extends State<MainScreen> {
           BottomNavigationBarItem(
             icon: Icon(Icons.home_outlined),
             activeIcon: Icon(Icons.home),
-            label: '홈',
+            label: 'Home',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.nature_outlined),
             activeIcon: Icon(Icons.nature),
-            label: '아일랜드',
+            label: 'Island',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.screen_lock_landscape_outlined),
             activeIcon: Icon(Icons.screen_lock_landscape),
-            label: '스크린타임',
+            label: 'Screen Time',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person_outline),
             activeIcon: Icon(Icons.person),
-            label: '프로필',
+            label: 'Profile',
           ),
         ],
       ),

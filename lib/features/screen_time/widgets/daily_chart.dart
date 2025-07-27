@@ -59,7 +59,7 @@ class DailyChart extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '오늘의 탄소 배출량',
+              'Daily carbon emission',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -67,47 +67,22 @@ class DailyChart extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 5),
-            Text(
-              '총 ${usageData.totalDailyEmissions.toStringAsFixed(1)}g CO2 배출',
-              style: TextStyle(
-                fontSize: 14,
-                color: isOverLimit ? Colors.red[600] : Colors.grey[700],
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text(
-              '일일 한계',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[600],
-              ),
-            ),
-            Text(
-              '${usageData.dailyCarbonLimit.toStringAsFixed(1)}g',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.green[600],
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                '터치해서 설정',
+            Text.rich(
+              TextSpan(
+                text: '${usageData.totalDailyEmissions.toStringAsFixed(1)}g / ',
                 style: TextStyle(
-                  fontSize: 10,
-                  color: Colors.grey[600],
-                ),
+                  fontSize: 14,
+                  color: isOverLimit ? Colors.red[700] : Colors.green[700],
+                  fontWeight: FontWeight.w500),
+                children: [
+                  TextSpan(
+                    text: '${usageData.dailyCarbonLimit.toStringAsFixed(1)}g CO₂',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[700],
+                      fontWeight: FontWeight.w300),
+                  )
+                ],
               ),
             ),
           ],
@@ -153,7 +128,7 @@ class DailyChart extends StatelessWidget {
               getTooltipItem: (group, groupIndex, rod, rodIndex) {
                 return BarTooltipItem(
                   '${usageData.timeLabels[group.x.toInt()]}\n'
-                  '${rod.toY.toStringAsFixed(1)}g CO2',
+                  '${rod.toY.toStringAsFixed(1)}g CO₂',
                   const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
@@ -268,7 +243,6 @@ class DailyChart extends StatelessWidget {
   }
 
   Color _getBarColor(double value) {
-    // 값에 따라 색상 조정 (높은 값일수록 빨간색에 가깝게)
     final double maxValue = usageData.dailyEmissions.reduce((a, b) => a > b ? a : b);
     final double ratio = value / maxValue;
     
@@ -285,19 +259,11 @@ class DailyChart extends StatelessWidget {
 
   double _calculateMaxY() {
     final double maxEmission = usageData.dailyEmissions.reduce((a, b) => a > b ? a : b);
-    // 최대값보다 20% 높게 설정하되, 최소 30으로 설정
     return (maxEmission * 1.2).clamp(30.0, double.infinity);
   }
 
   double _calculateGridInterval() {
     final double maxY = _calculateMaxY();
-    // 적절한 그리드 간격 계산
-    if (maxY <= 30) {
-      return 5;
-    } else if (maxY <= 60) {
-      return 10;
-    } else {
-      return 20;
-    }
+    return maxY / 6;
   }
 }

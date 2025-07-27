@@ -34,7 +34,6 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
   }
 
   void _checkPermissionAndLoadData() async {
-    // 사용량 권한 확인
     bool hasPermission = await AppInfoData.checkUsagePermission();
     if (!hasPermission) {
       _showPermissionDialog();
@@ -53,20 +52,20 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
             children: [
               Icon(Icons.security, color: Colors.orange[600], size: 24),
               const SizedBox(width: 8),
-              const Text('권한 필요'),
+              const Text('Require permission'),
             ],
           ),
           content: const Text(
-            '실제 앱 사용량을 확인하려면 사용량 접근 권한이 필요합니다.\n'
-            '설정에서 권한을 허용해주세요.',
+            'To see your actual app usage, we need permission to access usage data.\n'
+            'Please enable it in your Settings.',
           ),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
-                _loadData(); // 권한 없이 샘플 데이터로 진행
+                _loadData(); // sample data(no permission)
               },
-              child: const Text('나중에'),
+              child: const Text('Later'),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -78,7 +77,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
                 backgroundColor: Colors.green[400],
                 foregroundColor: Colors.white,
               ),
-              child: const Text('권한 설정'),
+              child: const Text('Set permission'),
             ),
           ],
         );
@@ -108,7 +107,6 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
     return SafeArea(
       child: Column(
         children: [
-          // 상단 제목과 서브 탭
           Container(
             color: Colors.white,
             child: Column(
@@ -128,13 +126,13 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
                     ],
                   ),
                 ),
-                // 서브 탭바 (Daily/Weekly)
+                // Sub tab(daily/weekly)
                 Container(
                   margin: const EdgeInsets.symmetric(horizontal: 20),
-                  height: 36, // 높이를 더 낮게 설정
+                  height: 36,
                   decoration: BoxDecoration(
                     color: Colors.grey[100],
-                    borderRadius: BorderRadius.circular(18), // 높이의 절반으로 설정
+                    borderRadius: BorderRadius.circular(18),
                   ),
                   child: TabBar(
                     controller: _subTabController,
@@ -142,7 +140,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
                       borderRadius: BorderRadius.circular(18),
                       color: Colors.green[400],
                     ),
-                    indicatorSize: TabBarIndicatorSize.tab, // 탭 전체 크기로 설정
+                    indicatorSize: TabBarIndicatorSize.tab,
                     labelColor: Colors.white,
                     unselectedLabelColor: Colors.grey[600],
                     labelStyle: const TextStyle(
@@ -156,11 +154,11 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
                     dividerColor: Colors.transparent,
                     tabs: const [
                       Tab(
-                        height: 36, // 탭 높이 설정
+                        height: 36,
                         text: 'Daily',
                       ),
                       Tab(
-                        height: 36, // 탭 높이 설정
+                        height: 36,
                         text: 'Weekly',
                       ),
                     ],
@@ -170,7 +168,6 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
               ],
             ),
           ),
-          // 탭 콘텐츠
           Expanded(
             child: TabBarView(
               controller: _subTabController,
@@ -231,6 +228,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
   Widget _buildWeeklySummary() {
     final double averageDaily = usageData!.averageDailyEmissions;
     final double weeklyLimit = usageData!.weeklyLimit;
+    final double averageLimit = weeklyLimit / 7;
     final bool isOverWeeklyLimit = usageData!.isOverWeeklyLimit;
 
     return Container(
@@ -256,7 +254,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '이번 주 탄소 배출량',
+            'Carbon emission of this week',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -271,14 +269,14 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '총 배출량',
+                    'Total emission',
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.grey[600],
                     ),
                   ),
                   Text(
-                    '${usageData!.totalWeeklyEmissions.toStringAsFixed(1)}g CO2',
+                    '${usageData!.totalWeeklyEmissions.toStringAsFixed(1)}g CO₂',
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
@@ -293,14 +291,14 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    '일평균',
+                    'Daily average',
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.grey[600],
                     ),
                   ),
                   Text(
-                    '${averageDaily.toStringAsFixed(1)}g CO2',
+                    '${averageDaily.toStringAsFixed(1)}g CO₂',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
@@ -321,7 +319,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
           ),
           const SizedBox(height: 8),
           Text(
-            '주간 목표: ${weeklyLimit.toStringAsFixed(1)}g CO2',
+            'Daily average goal: ${averageLimit.toStringAsFixed(1)}g CO₂ / day',
             style: TextStyle(
               fontSize: 12,
               color: Colors.grey[600],
@@ -345,7 +343,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
                 children: [
                   Icon(Icons.eco, color: Colors.green[600], size: 24),
                   const SizedBox(width: 8),
-                  const Text('일일 탄소 배출량 한계 설정'),
+                  const Text('Set daily limit'),
                 ],
               ),
               content: Column(
@@ -353,7 +351,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '현재 배출량: ${usageData!.totalDailyEmissions.toStringAsFixed(1)}g CO2',
+                    'Current emission: ${usageData!.totalDailyEmissions.toStringAsFixed(1)} g CO₂',
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.grey[700],
@@ -361,7 +359,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '권장 일일 한계: 150-250g CO2',
+                    'Recommended: Under 500 g CO₂',
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.grey[600],
@@ -369,7 +367,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
                   ),
                   const SizedBox(height: 20),
                   Text(
-                    '일일 한계량: ${newLimit.toStringAsFixed(1)}g CO2',
+                    'Daily limit: ${newLimit.toStringAsFixed(1)} g CO₂',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
@@ -380,8 +378,8 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
                   Slider(
                     value: newLimit,
                     min: 100,
-                    max: 400,
-                    divisions: 300,
+                    max: 1000,
+                    divisions: 900,
                     activeColor: Colors.green[400],
                     inactiveColor: Colors.grey[300],
                     onChanged: (value) {
@@ -414,8 +412,8 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
                   const SizedBox(height: 5),
                   Text(
                     usageData!.totalDailyEmissions > newLimit
-                        ? '⚠️ 현재 배출량이 한계를 초과합니다'
-                        : '✅ 현재 배출량이 한계 내에 있습니다',
+                        ? 'Current emission is over limit'
+                        : 'Current emission is under limit',
                     style: TextStyle(
                       fontSize: 12,
                       color: usageData!.totalDailyEmissions > newLimit
@@ -431,7 +429,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
                     Navigator.of(context).pop();
                   },
                   child: Text(
-                    '취소',
+                    'Cancel',
                     style: TextStyle(color: Colors.grey[600]),
                   ),
                 ),
@@ -446,7 +444,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
                     backgroundColor: Colors.green[400],
                     foregroundColor: Colors.white,
                   ),
-                  child: const Text('저장'),
+                  child: const Text('Save'),
                 ),
               ],
             );
@@ -465,19 +463,17 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              title: Text('${app.name} 제한 설정'),
+              title: Text('Set limit of ${app.name}'),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                      '현재 배출량: ${app.currentEmission.toStringAsFixed(1)}g CO2'),
+                      'Current emission: ${app.currentEmission.toStringAsFixed(1)}g CO₂'),
                   Text(
-                      '사용시간: ${app.currentUsage.toStringAsFixed(1)}분'),
-                  Text(
-                      '배출계수: ${app.emitRate}g/시간'),
-                  const SizedBox(height: 20),
-                  Text('일일 제한량: ${newLimit.toStringAsFixed(1)}g CO2'),
-                  const SizedBox(height: 10),
+                      '${app.emitRate}g CO₂ / hr'),
+                  const SizedBox(height: 15),
+                  Text('Daily limit: ${newLimit.toStringAsFixed(1)}g CO₂'),
+                  const SizedBox(height: 15),
                   Slider(
                     value: newLimit,
                     min: 50,
@@ -497,7 +493,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
                   onPressed: () {
                     Navigator.of(context).pop();
                   },
-                  child: const Text('취소'),
+                  child: const Text('Cancel'),
                 ),
                 TextButton(
                   onPressed: () {
@@ -506,7 +502,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
                     });
                     Navigator.of(context).pop();
                   },
-                  child: const Text('저장'),
+                  child: const Text('Save'),
                 ),
               ],
             );

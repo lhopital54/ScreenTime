@@ -2,12 +2,12 @@
 import 'package:flutter/material.dart';
 
 class AppInfo {
-  String id; // 패키지명 (예: com.instagram.android)
-  String name; // 표시명 (예: Instagram)
-  IconData icon; // 기본 아이콘 사용
-  double currentUsage; // 사용시간 (분)
-  double emitRate; // 배출계수 (g CO2/hour)
-  double limit; // 한계값 (g CO2/day)
+  String id; // packageName
+  String name; // displayName
+  IconData icon; // 일단 기본아이콘 가져오기
+  double currentUsage; // minute
+  double emitRate; // g CO2/hour
+  double limit; // limit g CO2/day)
 
   AppInfo(
     this.id,
@@ -18,12 +18,10 @@ class AppInfo {
     this.limit,
   );
 
-  // 계산된 속성들 - 시간당 배출계수로 변경
-  double get currentEmission => (currentUsage / 60) * emitRate; // 분을 시간으로 변환 후 계산
+  double get currentEmission => (currentUsage / 60) * emitRate;
   bool get isOverLimit => currentEmission > limit;
   double get usagePercentage => (currentEmission / limit).clamp(0.0, 1.0);
 
-  // 앱 한계값 업데이트
   AppInfo updateLimit(double newLimit) {
     return AppInfo(
       id,
@@ -35,7 +33,6 @@ class AppInfo {
     );
   }
 
-  // 사용량 업데이트
   AppInfo updateUsage(double newUsage) {
     return AppInfo(
       id,

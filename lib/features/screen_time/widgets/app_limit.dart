@@ -32,7 +32,7 @@ class AppLimit extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '앱별 탄소배출량 제한',
+            'Limit apps',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -94,7 +94,7 @@ class AppLimit extends StatelessWidget {
                     ),
                     const SizedBox(height: 5),
                     Text(
-                      '${app.currentEmission.toStringAsFixed(1)}g / ${app.limit.toStringAsFixed(1)}g CO2',
+                      '${app.currentEmission.toStringAsFixed(1)}g / ${app.limit.toStringAsFixed(1)}g CO₂',
                       style: TextStyle(
                         fontSize: 12,
                         color: isOverLimit ? Colors.red[600] : Colors.grey[600],
@@ -102,7 +102,7 @@ class AppLimit extends StatelessWidget {
                     ),
                     const SizedBox(height: 5),
                     Text(
-                      '사용시간: ${app.currentUsage.toStringAsFixed(1)}분 (배출계수: ${app.emitRate}g/시간)',
+                      'Usage: ${app.currentUsage.toStringAsFixed(1)} min (${app.emitRate}g CO₂ / hr)',
                       style: TextStyle(
                         fontSize: 10,
                         color: Colors.grey[500],
@@ -132,19 +132,6 @@ class AppLimit extends StatelessWidget {
   }
 
   Color _getAppColor(String appName) {
-    switch (appName.toLowerCase()) {
-      case 'instagram':
-        return Colors.pink;
-      case 'youtube':
-        return Colors.red;
-      case 'tiktok':
-        return Colors.black;
-      case 'twitter':
-        return Colors.blue;
-      case '게임':
-        return Colors.orange;
-      default:
-        return Colors.grey;
-    }
+    return Colors.grey;
   }
 }

@@ -43,7 +43,7 @@ class WeeklyChart extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
-          '주간 배출량 추이',
+          'Weekly carbon emission',
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
@@ -54,14 +54,14 @@ class WeeklyChart extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Text(
-              '평균 일일 배출량',
+              'Daily average emission',
               style: TextStyle(
                 fontSize: 12,
                 color: Colors.grey[600],
               ),
             ),
             Text(
-              '${usageData.averageDailyEmissions.toStringAsFixed(1)}g CO2',
+              '${usageData.averageDailyEmissions.toStringAsFixed(1)}g CO₂',
               style: TextStyle(
                 fontSize: 14,
                 color: Colors.green[600],
@@ -91,8 +91,8 @@ class WeeklyChart extends StatelessWidget {
                   final dayIndex = touchedSpot.x.toInt();
                   if (dayIndex >= 0 && dayIndex < usageData.weekDays.length) {
                     return LineTooltipItem(
-                      '${usageData.weekDays[dayIndex]}요일\n'
-                      '${touchedSpot.y.toStringAsFixed(1)}g CO2',
+                      '${usageData.weekDays[dayIndex]}\n'
+                      '${touchedSpot.y.toStringAsFixed(1)}g CO₂',
                       const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -205,7 +205,7 @@ class WeeklyChart extends StatelessWidget {
       dotData: FlDotData(
         show: true,
         getDotPainter: (spot, percent, barData, index) {
-          final bool isToday = index == 6; // 일요일이 오늘이라고 가정
+          final bool isToday = index == 6;
           return FlDotCirclePainter(
             radius: isToday ? 6 : 4,
             color: isToday ? Colors.green[700]! : Colors.white,
@@ -237,19 +237,12 @@ class WeeklyChart extends StatelessWidget {
     if (usageData.weeklyEmissions.isEmpty) return 120.0;
     
     final double maxEmission = usageData.weeklyEmissions.reduce((a, b) => a > b ? a : b);
-    // 최대값보다 20% 높게 설정하되, 최소 120으로 설정
+
     return (maxEmission * 1.2).clamp(120.0, double.infinity);
   }
 
   double _calculateGridInterval() {
     final double maxY = _calculateMaxY();
-    // 적절한 그리드 간격 계산
-    if (maxY <= 120) {
-      return 20;
-    } else if (maxY <= 200) {
-      return 40;
-    } else {
-      return 50;
-    }
+    return maxY / 5;
   }
 }

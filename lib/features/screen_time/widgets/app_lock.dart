@@ -32,7 +32,7 @@ class AppLock extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Text(
-            '앱 잠금',
+            'Lock apps',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
