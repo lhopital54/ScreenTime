@@ -1,5 +1,8 @@
 // features/screen_time/screen_time_screen.dart
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'data/usage_data.dart';
 import 'data/app_info_data.dart';
 import 'models/app_info.dart';
@@ -18,6 +21,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
   late TabController _subTabController;
 
   bool isAppLocked = false;
+  bool isLoading = true;
   UsageData? usageData;
 
   @override
@@ -33,7 +37,113 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
     super.dispose();
   }
 
+  // JSON 파일들을 로컬 저장소에 초기화
+  Future<void> _initializeJsonFiles() async {
+    try {
+      Directory appDocDir = await getApplicationDocumentsDirectory();
+      String localPath = appDocDir.path;
+      
+      List<String> jsonFiles = [
+        'app_list.json',
+        'daily_usage.json', 
+        'weekly_usage.json'
+      ];
+      
+      for (String fileName in jsonFiles) {
+        File localFile = File('$localPath/$fileName');
+        
+        if (!await localFile.exists()) {
+          try {
+            String assetContent = await rootBundle.loadString('assets/$fileName');
+            await localFile.writeAsString(assetContent);
+            print('✅ $fileName copied to local storage');
+          } catch (e) {
+            print('❌ Error copying $fileName: $e');
+            await createDefaultJsonFile(localFile, fileName);
+          }
+        } else {
+          print('📁 $fileName already exists in local storage');
+        }
+      }
+    } catch (e) {
+      print('Error initializing JSON files: $e');
+    }
+  }
+
+  // 기본 JSON 파일 생성
+  Future<void> createDefaultJsonFile(File file, String fileName) async {
+    try {
+      String defaultContent;
+      
+      switch (fileName) {
+        case 'app_list.json':
+          defaultContent = '''
+  {
+    "apps": [
+      {
+        "packageName": "com.google.android.youtube",
+        "displayName": "YouTube",
+        "emitRate": 170.0,
+        "defaultLimit": 200.0
+      }
+    ]
+  }''';
+          break;
+          
+        case 'daily_usage.json':
+          defaultContent = '''
+  {
+    "date": "${DateTime.now().toIso8601String().substring(0, 10)}",
+    "dailyCarbonLimit": 500.0,
+    "timeSlots": ["00-04", "04-08", "08-12", "12-16", "16-20", "20-24"],
+    "apps": [
+      {
+        "id": "com.google.android.youtube", 
+        "usageBySlot": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        "totalUsage": 0.0
+      }
+    ]
+  }''';
+          break;
+          
+        case 'weekly_usage.json':
+          defaultContent = '''
+  {
+    "week": "${_getWeekString()}",
+    "weekDays": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+    "weeklyEmissions": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+    "apps": [
+      {
+        "id": "com.google.android.youtube",
+        "weeklyUsage": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+      }
+    ]
+  }''';
+          break;
+          
+        default:
+          defaultContent = '{}';
+      }
+      
+      await file.writeAsString(defaultContent);
+      print('🔧 Created default $fileName');
+      
+    } catch (e) {
+      print('Error creating default $fileName: $e');
+    }
+  }
+
+  String _getWeekString() {
+    DateTime now = DateTime.now();
+    DateTime startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+    DateTime endOfWeek = startOfWeek.add(Duration(days: 6));
+    
+    return '${startOfWeek.toIso8601String().substring(0, 10)} to ${endOfWeek.toIso8601String().substring(0, 10)}';
+  }
+
   void _checkPermissionAndLoadData() async {
+    await _initializeJsonFiles();
+
     bool hasPermission = await AppInfoData.checkUsagePermission();
     if (!hasPermission) {
       _showPermissionDialog();
@@ -90,6 +200,34 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
     setState(() {
       usageData = data;
     });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.black, size: 20),
+            SizedBox(width: 8),
+            Text('Usage data has been updated', style: TextStyle(color: Colors.black)),
+          ],
+        ),
+        backgroundColor: Colors.white,
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
+  Future<void> _refreshUsageData() async {
+    try {
+      _loadData();
+    } catch (error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to refreshing data: $error'),
+          duration: Duration(seconds: 3),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
@@ -200,6 +338,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
           DailyChart(
             usageData: usageData!,
             onLimitTap: _showDailyLimitDialog,
+            onRefresh: _refreshUsageData
           ),
           const SizedBox(height: 30),
           AppLimit(
@@ -434,9 +573,10 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
                   ),
                 ),
                 ElevatedButton(
-                  onPressed: () {
+                  onPressed: () async {
+                    UsageData updatedData = await usageData!.updateDailyLimit(newLimit);
                     setState(() {
-                      usageData = usageData!.updateDailyLimit(newLimit);
+                      usageData = updatedData;
                     });
                     Navigator.of(context).pop();
                   },
@@ -496,9 +636,10 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
                   child: const Text('Cancel'),
                 ),
                 TextButton(
-                  onPressed: () {
+                  onPressed: () async {
+                    UsageData updatedData = await usageData!.updateAppLimit(app.id, newLimit);
                     setState(() {
-                      usageData = usageData!.updateAppLimit(app.id, newLimit);
+                      usageData = updatedData;
                     });
                     Navigator.of(context).pop();
                   },

@@ -1,6 +1,6 @@
 // main.dart
 import 'package:flutter/material.dart';
-import 'features/screen_time/screen_time_screen.dart';
+import 'feature/screen_time/screen_time_screen.dart';
 
 void main() {
   runApp(MyApp());

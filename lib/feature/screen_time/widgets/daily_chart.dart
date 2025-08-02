@@ -6,11 +6,13 @@ import '../data/usage_data.dart';
 class DailyChart extends StatelessWidget {
   final UsageData usageData;
   final VoidCallback onLimitTap;
+  final VoidCallback onRefresh;
 
   const DailyChart({
     Key? key,
     required this.usageData,
     required this.onLimitTap,
+    required this.onRefresh,
   }) : super(key: key);
 
   @override
@@ -86,6 +88,19 @@ class DailyChart extends StatelessWidget {
               ),
             ),
           ],
+        ),
+        IconButton(
+          onPressed: onRefresh,
+          icon: Icon(
+            Icons.refresh,
+            color: Colors.grey[600],
+            size: 20,
+          ),
+          padding: EdgeInsets.zero,
+          constraints: BoxConstraints(
+            minWidth: 32,
+            minHeight: 32,
+          ),
         ),
       ],
     );

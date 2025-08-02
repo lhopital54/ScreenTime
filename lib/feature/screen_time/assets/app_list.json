@@ -1,0 +1,10 @@
+{
+  "apps": [
+    {
+      "packageName": "com.google.android.youtube",
+      "displayName": "YouTube", 
+      "emitRate": 170.0,
+      "defaultLimit": 200.0
+    }
+  ]
+}

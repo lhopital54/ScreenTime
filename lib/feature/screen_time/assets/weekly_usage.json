@@ -1,0 +1,11 @@
+{
+  "week": "${}",
+  "weekDays": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+  "weeklyEmissions": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+  "apps": [
+    {
+      "id": "com.google.android.youtube",
+      "weeklyUsage": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    }
+  ]
+}

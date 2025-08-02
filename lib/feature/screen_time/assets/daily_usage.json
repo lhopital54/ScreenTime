@@ -11,7 +11,7 @@
   ],
   "apps": [
     {
-      "id": "instagram",
+      "id": "com.instagram.android",
       "usageBySlot": [
         2.5,
         5.0,
@@ -23,7 +23,7 @@
       "totalUsage": 25.4
     },
     {
-      "id": "youtube",
+      "id": "com.google.android.youtube",
       "usageBySlot": [
         0.0,
         5.2,
@@ -35,7 +35,7 @@
       "totalUsage": 45.2
     },
     {
-      "id": "tiktok",
+      "id": "com.zhiliaoapp.musically",
       "usageBySlot": [
         2.0,
         1.0,
@@ -45,30 +45,6 @@
         1.7
       ],
       "totalUsage": 18.7
-    },
-    {
-      "id": "twitter",
-      "usageBySlot": [
-        0.5,
-        1.0,
-        3.0,
-        4.0,
-        2.8,
-        1.0
-      ],
-      "totalUsage": 12.3
-    },
-    {
-      "id": "game",
-      "usageBySlot": [
-        5.0,
-        2.0,
-        8.0,
-        10.0,
-        6.8,
-        4.0
-      ],
-      "totalUsage": 35.8
     }
   ]
 }
