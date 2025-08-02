@@ -10,6 +10,7 @@ import 'widgets/app_lock.dart';
 import 'widgets/daily_chart.dart';
 import 'widgets/app_limit.dart';
 import 'widgets/weekly_chart.dart';
+import 'widgets/weekly_insight.dart';
 
 class ScreenTimeScreen extends StatefulWidget {
   @override
@@ -37,7 +38,6 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
     super.dispose();
   }
 
-  // JSON 파일들을 로컬 저장소에 초기화
   Future<void> _initializeJsonFiles() async {
     try {
       Directory appDocDir = await getApplicationDocumentsDirectory();
@@ -53,16 +53,9 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
         File localFile = File('$localPath/$fileName');
         
         if (!await localFile.exists()) {
-          try {
-            String assetContent = await rootBundle.loadString('assets/$fileName');
-            await localFile.writeAsString(assetContent);
-            print('✅ $fileName copied to local storage');
-          } catch (e) {
-            print('❌ Error copying $fileName: $e');
-            await createDefaultJsonFile(localFile, fileName);
-          }
+          await createDefaultJsonFile(localFile, fileName);
         } else {
-          print('📁 $fileName already exists in local storage');
+          print('$fileName already exists in local storage');
         }
       }
     } catch (e) {
@@ -70,7 +63,6 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
     }
   }
 
-  // 기본 JSON 파일 생성
   Future<void> createDefaultJsonFile(File file, String fileName) async {
     try {
       String defaultContent;
@@ -126,7 +118,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
       }
       
       await file.writeAsString(defaultContent);
-      print('🔧 Created default $fileName');
+      print('Created default $fileName');
       
     } catch (e) {
       print('Error creating default $fileName: $e');
@@ -200,6 +192,8 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
     setState(() {
       usageData = data;
     });
+    await AppInfoData.refreshWeeklyUsageData();
+    WeeklyInsightsWidget.refreshInsights();
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -334,13 +328,13 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
               });
             },
           ),
-          const SizedBox(height: 30),
+          const SizedBox(height: 20),
           DailyChart(
             usageData: usageData!,
             onLimitTap: _showDailyLimitDialog,
             onRefresh: _refreshUsageData
           ),
-          const SizedBox(height: 30),
+          const SizedBox(height: 20),
           AppLimit(
             appInfos: usageData!.appInfos,
             onAppTap: _showAppLimitDialog,
@@ -356,114 +350,14 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildWeeklySummary(),
-          const SizedBox(height: 30),
-          WeeklyChart(usageData: usageData!),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildWeeklySummary() {
-    final double averageDaily = usageData!.averageDailyEmissions;
-    final double weeklyLimit = usageData!.weeklyLimit;
-    final double averageLimit = weeklyLimit / 7;
-    final bool isOverWeeklyLimit = usageData!.isOverWeeklyLimit;
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(
-          color: isOverWeeklyLimit ? Colors.red[300]! : Colors.transparent,
-          width: 2,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.1),
-            spreadRadius: 2,
-            blurRadius: 8,
-            offset: const Offset(0, 3),
+          WeeklyChart(
+            usageData: usageData!,
+            onRefresh: () {
+              AppInfoData.refreshWeeklyUsageData();
+            }
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Carbon emission of this week',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey[800],
-            ),
-          ),
-          const SizedBox(height: 15),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Total emission',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                  Text(
-                    '${usageData!.totalWeeklyEmissions.toStringAsFixed(1)}g CO₂',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: isOverWeeklyLimit
-                          ? Colors.red[600]
-                          : Colors.grey[800],
-                    ),
-                  ),
-                ],
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    'Daily average',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                  Text(
-                    '${averageDaily.toStringAsFixed(1)}g CO₂',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.green[600],
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 15),
-          LinearProgressIndicator(
-            value: (usageData!.totalWeeklyEmissions / weeklyLimit).clamp(0.0, 1.0),
-            backgroundColor: Colors.grey[200],
-            valueColor: AlwaysStoppedAnimation<Color>(
-              isOverWeeklyLimit ? Colors.red[400]! : Colors.green[400]!,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Daily average goal: ${averageLimit.toStringAsFixed(1)}g CO₂ / day',
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[600],
-            ),
-          ),
+          const SizedBox(height: 20),
+          const WeeklyInsightsWidget(),
         ],
       ),
     );
@@ -518,7 +412,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
                     value: newLimit,
                     min: 100,
                     max: 1000,
-                    divisions: 900,
+                    divisions: 90,
                     activeColor: Colors.green[400],
                     inactiveColor: Colors.grey[300],
                     onChanged: (value) {
@@ -616,9 +510,9 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
                   const SizedBox(height: 15),
                   Slider(
                     value: newLimit,
-                    min: 50,
+                    min: 0,
                     max: 500,
-                    divisions: 450,
+                    divisions: 50,
                     activeColor: Colors.green[400],
                     onChanged: (value) {
                       setDialogState(() {

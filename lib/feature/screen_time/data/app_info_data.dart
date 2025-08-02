@@ -38,7 +38,7 @@ class AppInfoData {
     await _loadAppIcons();
   }
   
-  static Future<void> _loadAppIcons() async {
+  static Future<void> _loadAppIcons() async {  // not working...............
     for (String packageName in appMetadata.keys) {
       // try {
       //   Application? app = await DeviceApps.getApp(packageName, true);
@@ -189,11 +189,10 @@ class AppInfoData {
     Map<String, dynamic> dailyData = await loadDailyUsageData();
     double dailyCarbonLimit = dailyData['dailyCarbonLimit']?.toDouble() ?? 100.0;
 
-    print('📊 Collecting usage events from $dayStart to $dayEnd');
+    print('Collecting usage events from $dayStart to $dayEnd');
 
-    // queryEvents가 null을 반환할 수 있어, 빈 리스트로 전환
     final allEvents = await UsageStats.queryEvents(dayStart, dayEnd);
-    print('📱 Found ${allEvents.length} total events');
+    print('Found ${allEvents.length} total events');
 
     // initialize
     final eventsByApp = <String, List<dynamic>>{
@@ -210,9 +209,9 @@ class AppInfoData {
 
     for (var appId in appIds) {
       final events = eventsByApp[appId]!;
-      print('🔍 Processing ${events.length} events for $appId');
+      print('Processing ${events.length} events for $appId');
       
-      // 시간순 정렬
+      // sorting(key = time)
       events.sort((a, b) {
         int aTime = int.tryParse(a.timeStamp?.toString() ?? '0') ?? 0;
         int bTime = int.tryParse(b.timeStamp?.toString() ?? '0') ?? 0;
@@ -231,17 +230,17 @@ class AppInfoData {
 
         if (type == _EVENT_RESUMED) {
           sessionStart = ts;
-          print('▶️ $appId started at $ts');
+          print('$appId started at $ts');
         } else if ((type == _EVENT_PAUSED || type == _EVENT_STOPPED) && sessionStart != null) {
           final sessionEnd = ts;
-          print('⏸️ $appId stopped at $ts');
+          print('$appId stopped at $ts');
 
           final start = sessionStart.isBefore(dayStart) ? dayStart : sessionStart;
           final end = sessionEnd.isAfter(dayEnd) ? dayEnd : sessionEnd;
 
           if (end.isAfter(start)) {
             final sessionMinutes = end.difference(start).inSeconds / 60.0;
-            print('⏱️ Session duration: ${sessionMinutes.toStringAsFixed(2)} minutes');
+            print('Session duration: ${sessionMinutes.toStringAsFixed(2)} minutes');
             
             for (var i = 0; i < timeSlotsLabels.length; i++) {
               final slotStart = dayStart.add(Duration(hours: 4 * i));
@@ -254,7 +253,7 @@ class AppInfoData {
               if (minutes > 0) {
                 usageBySlot[i] += minutes;
                 totalUsageBySlot[i] += minutes;
-                print('  📊 Slot ${timeSlotsLabels[i]}: +${minutes.toStringAsFixed(2)} min');
+                print('  Slot ${timeSlotsLabels[i]}: +${minutes.toStringAsFixed(2)} min');
               }
             }
             totalUsage += sessionMinutes;
@@ -263,7 +262,7 @@ class AppInfoData {
         }
       }
 
-      // 진행 중인 세션 처리 (아직 종료되지 않은 앱)
+      // handling session not finished
       if (sessionStart != null) {
         final now = DateTime.now();
         final sessionEnd = now.isBefore(dayEnd) ? now : dayEnd;
@@ -271,11 +270,10 @@ class AppInfoData {
         if (sessionEnd.isAfter(sessionStart)) {
           final sessionMinutes = sessionEnd.difference(sessionStart).inSeconds / 60.0;
           totalUsage += sessionMinutes;
-          print('🔄 $appId still running: +${sessionMinutes.toStringAsFixed(2)} min');
+          print('$appId still running: +${sessionMinutes.toStringAsFixed(2)} min');
         }
       }
 
-      // 소수점 둘째 자리 반올림
       for (var i = 0; i < usageBySlot.length; i++) {
         usageBySlot[i] = double.parse(usageBySlot[i].toStringAsFixed(2));
       }
@@ -288,7 +286,7 @@ class AppInfoData {
       });
 
       if (totalUsage > 0) {
-        print('✅ $appId total usage: ${totalUsage.toStringAsFixed(2)} minutes');
+        print('$appId total usage: ${totalUsage.toStringAsFixed(2)} minutes');
       }
     }
 
@@ -301,29 +299,239 @@ class AppInfoData {
       'apps': appsResult,
     };
 
-    print('📈 Final result: ${result}');
+    print('Final result: ${result}');
 
-    // JSON 문자열 생성
+    // generating JSON string
     String jsonString = const JsonEncoder.withIndent('  ').convert(result);
     
-    // ✅ 로컬 저장소에 저장 (새로 추가된 기능)
+    // saving file
     try {
       Directory appDocDir = await getApplicationDocumentsDirectory();
       File file = File('${appDocDir.path}/daily_usage.json');
       
       await file.writeAsString(jsonString);
-      print('💾 Daily usage data saved to: ${file.path}');
+      print('Daily usage data saved to: ${file.path}');
       
-      // 저장된 데이터 확인용 로그
+      // debug
       int appsWithUsage = appsResult.where((app) => app['totalUsage'] > 0).length;
-      print('📊 Summary: ${appsWithUsage}/${appsResult.length} apps have usage data');
+      print('${appsWithUsage}/${appsResult.length} apps have usage data');
       
     } catch (e) {
-      print('❌ Error saving daily usage JSON: $e');
+      print('Error saving daily usage JSON: $e');
     }
+
+    await updateWeeklyUsageData();
 
     return jsonString;
   }
+
+    static Future<String> getWeeklyUsageJson() async {
+    try {
+      print('Generating weekly usage data...');
+      
+      final now = DateTime.now();
+      final startOfWeek = _getStartOfWeek(now);
+      
+      List<String> appIds = await loadAppIds();
+      
+      List<double> weeklyEmissions = await _calculateWeeklyEmissions(startOfWeek, appIds);
+      
+      List<Map<String, dynamic>> appsWeeklyData = await _calculateAppsWeeklyUsage(startOfWeek, appIds);
+      
+      final result = {
+        'week': _getWeekString(startOfWeek),
+        'weekDays': ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+        'weeklyEmissions': weeklyEmissions,
+        'apps': appsWeeklyData,
+      };
+      
+      print('Weekly result: $result');
+      
+      // generating JSON string
+      String jsonString = const JsonEncoder.withIndent('  ').convert(result);
+      
+      // saving file
+      try {
+        Directory appDocDir = await getApplicationDocumentsDirectory();
+        File file = File('${appDocDir.path}/weekly_usage.json');
+        
+        await file.writeAsString(jsonString);
+        print('Weekly usage data saved to: ${file.path}');
+        
+      } catch (e) {
+        print('Error saving weekly usage JSON: $e');
+      }
+      
+      return jsonString;
+      
+    } catch (e) {
+      print('Error generating weekly usage JSON: $e');
+      return '{}';
+    }
+  }
+
+  static Future<List<double>> _calculateWeeklyEmissions(DateTime startOfWeek, List<String> appIds) async {
+    List<double> weeklyEmissions = List.filled(7, 0.0);
+    
+    for (int dayIndex = 0; dayIndex < 7; dayIndex++) {
+      DateTime targetDate = startOfWeek.add(Duration(days: dayIndex));
+      double dayEmission = 0.0;
+      
+      Map<String, dynamic> dayUsageData = await _getDayUsageData(targetDate, appIds);
+      List<dynamic> apps = dayUsageData['apps'] ?? [];
+      
+      for (var appData in apps) {
+        String packageName = appData['id'] ?? '';
+        double totalUsage = (appData['totalUsage'] ?? 0.0).toDouble();
+        
+        double emitRate = getEmitRate(packageName);
+        double hours = totalUsage / 60;
+        dayEmission += hours * emitRate;
+      }
+      
+      weeklyEmissions[dayIndex] = double.parse(dayEmission.toStringAsFixed(2));
+      print('${_getDayString(targetDate)}: ${dayEmission.toStringAsFixed(2)}g CO2');
+    }
+    
+    return weeklyEmissions;
+  }
+
+  static Future<List<Map<String, dynamic>>> _calculateAppsWeeklyUsage(DateTime startOfWeek, List<String> appIds) async {
+    List<Map<String, dynamic>> appsWeeklyData = [];
+    
+    for (String appId in appIds) {
+      List<double> weeklyUsage = List.filled(7, 0.0);
+      
+      for (int dayIndex = 0; dayIndex < 7; dayIndex++) {
+        DateTime targetDate = startOfWeek.add(Duration(days: dayIndex));
+        
+        double dayUsage = await _getAppDayUsage(targetDate, appId);
+        weeklyUsage[dayIndex] = double.parse(dayUsage.toStringAsFixed(2));
+      }
+      
+      appsWeeklyData.add({
+        'id': appId,
+        'weeklyUsage': weeklyUsage,
+      });
+      
+      double totalWeekUsage = weeklyUsage.reduce((a, b) => a + b);
+      if (totalWeekUsage > 0) {
+        print('$appId weekly total: ${totalWeekUsage.toStringAsFixed(2)} minutes');
+      }
+    }
+    
+    return appsWeeklyData;
+  }
+
+  // Get usage data of specific date
+  static Future<Map<String, dynamic>> _getDayUsageData(DateTime date, List<String> appIds) async {
+    final dayStart = DateTime(date.year, date.month, date.day, 0, 0);
+    final dayEnd = dayStart.add(const Duration(days: 1));
+    
+    print('Getting usage data for ${date.toIso8601String().substring(0, 10)}');
+    
+    final allEvents = await UsageStats.queryEvents(dayStart, dayEnd);
+    
+    final eventsByApp = <String, List<dynamic>>{
+      for (var id in appIds) id: <dynamic>[],
+    };
+    
+    for (var e in allEvents) {
+      if (eventsByApp.containsKey(e.packageName)) {
+        eventsByApp[e.packageName]!.add(e);
+      }
+    }
+    
+    final appsResult = <Map<String, dynamic>>[];
+    
+    for (var appId in appIds) {
+      final events = eventsByApp[appId]!;
+      
+      // sorting(key = tiem)
+      events.sort((a, b) {
+        int aTime = int.tryParse(a.timeStamp?.toString() ?? '0') ?? 0;
+        int bTime = int.tryParse(b.timeStamp?.toString() ?? '0') ?? 0;
+        return aTime.compareTo(bTime);
+      });
+      
+      double totalUsage = 0.0;
+      DateTime? sessionStart;
+      
+      for (var event in events) {
+        final ts = DateTime.fromMillisecondsSinceEpoch(
+          int.tryParse(event.timeStamp?.toString() ?? '0') ?? 0
+        );
+        final type = int.tryParse(event.eventType?.toString() ?? '0') ?? 0;
+        
+        if (type == _EVENT_RESUMED) {
+          sessionStart = ts;
+        } else if ((type == _EVENT_PAUSED || type == _EVENT_STOPPED) && sessionStart != null) {
+          final sessionEnd = ts;
+          
+          final start = sessionStart.isBefore(dayStart) ? dayStart : sessionStart;
+          final end = sessionEnd.isAfter(dayEnd) ? dayEnd : sessionEnd;
+          
+          if (end.isAfter(start)) {
+            totalUsage += end.difference(start).inSeconds / 60.0;
+          }
+          sessionStart = null;
+        }
+      }
+      
+      appsResult.add({
+        'id': appId,
+        'totalUsage': double.parse(totalUsage.toStringAsFixed(2)),
+      });
+    }
+    
+    return {'apps': appsResult};
+  }
+
+  // get specific usage data of specific day
+  static Future<double> _getAppDayUsage(DateTime date, String appId) async {
+    Map<String, dynamic> dayData = await _getDayUsageData(date, [appId]);
+    List<dynamic> apps = dayData['apps'] ?? [];
+    
+    for (var app in apps) {
+      if (app['id'] == appId) {
+        return (app['totalUsage'] ?? 0.0).toDouble();
+      }
+    }
+    
+    return 0.0;
+  }
+
+  static DateTime _getStartOfWeek(DateTime date) {
+    int weekday = date.weekday; // 1=Monday, 7=Sunday
+    DateTime startOfWeek = date.subtract(Duration(days: weekday - 1));
+    return DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day);
+  }
+
+  static String _getWeekString(DateTime startOfWeek) {
+    DateTime endOfWeek = startOfWeek.add(Duration(days: 6));
+    return '${startOfWeek.toIso8601String().substring(0, 10)} to ${endOfWeek.toIso8601String().substring(0, 10)}';
+  }
+
+  static String _getDayString(DateTime date) {
+    List<String> weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    String weekday = weekdays[date.weekday - 1];
+    return '${date.toIso8601String().substring(0, 10)} ($weekday)';
+  }
+
+  static Future<void> updateWeeklyUsageData() async {
+    try {
+      print('Updating weekly usage data...');
+      await getWeeklyUsageJson();
+      print('Weekly usage data updated successfully');
+    } catch (e) {
+      print('Error updating weekly usage data: $e');
+    }
+  }
+
+  static Future<void> refreshWeeklyUsageData() async {
+    await getWeeklyUsageJson();
+  }
+
   // ------------------------------
   // loading data from json
   // ------------------------------
@@ -355,18 +563,16 @@ class AppInfoData {
     }
   }
 
-  // AppInfo 리스트 생성 (기존 AppInfoData 함수 활용)
   static Future<List<AppInfo>> createAppInfosFromJson() async {
-    // AppInfoData의 앱 메타데이터 로드
+    
     await AppInfoData.loadAppList();
     
-    // daily_usage.json 로드
+    
     Map<String, dynamic> dailyData = await loadDailyUsageData();
 
     print(dailyData);
     
     if (dailyData.isEmpty) {
-      // JSON 로드 실패 시 샘플 데이터
       return [
         AppInfoData.createAppInfoFromUsage('com.google.android.youtube', 0.0),
       ];
@@ -379,7 +585,6 @@ class AppInfoData {
       String packageName = appData['id'];
       double totalUsage = appData['totalUsage']?.toDouble() ?? 0.0;
       
-      // AppInfoData의 기존 함수 사용
       AppInfo appInfo = AppInfoData.createAppInfoFromUsage(packageName, totalUsage);
       appInfos.add(appInfo);
     }
@@ -388,34 +593,29 @@ class AppInfoData {
     return appInfos;
   }
 
-  // 시간대별 배출량 데이터 생성
   static Future<List<double>> createDailyEmissionsFromJson() async {
     Map<String, dynamic> dailyData = await loadDailyUsageData();
     
     if (dailyData.isEmpty) {
       print("Failed at loading daily data");
-      // JSON 로드 실패 시 샘플 데이터
-      return [12.5, 8.3, 15.7, 22.1, 18.9, 9.2];
+      return [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
     }
     
     List<String> timeSlots = List<String>.from(dailyData['timeSlots'] ?? []);
     List<double> dailyEmissions = List.filled(timeSlots.length, 0.0);
     
-    // 각 앱의 시간대별 사용량을 배출량으로 변환
     List<dynamic> apps = dailyData['apps'] ?? [];
     
     for (var appData in apps) {
       String packageName = appData['id'];
       List<dynamic> usageBySlot = appData['usageBySlot'] ?? [];
       
-      // AppInfoData에서 배출계수 가져오기
       double emitRate = AppInfoData.getEmitRate(packageName);
       
-      // 각 시간대별로 배출량 계산
       for (int i = 0; i < 6; i++) {
         double usageMinutes = usageBySlot[i]?.toDouble() ?? 0.0;
-        double hours = usageMinutes / 60; // 분을 시간으로 변환
-        double emission = hours * emitRate; // 시간당 배출계수 적용
+        double hours = usageMinutes / 60;
+        double emission = hours * emitRate;
         dailyEmissions[i] = emission;
       }
     }
@@ -429,7 +629,6 @@ class AppInfoData {
 
     if (weeklyData.isEmpty) {
       print("Failed at loading Weekly data");
-      // JSON 로드 실패 시 샘플 데이터
       return [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
     }
     
@@ -457,7 +656,7 @@ class AppInfoData {
 
   static List<AppInfo> createSampleApps() {
     return [
-      AppInfo('com.google.android.youtube', 'YouTube', Icons.play_circle_fill, 75.3, 170.0, 200.0),
+      AppInfo('com.google.android.youtube', 'YouTube', Icons.play_circle_fill, 0.0, 170.0, 200.0),
     ];
   }
 }

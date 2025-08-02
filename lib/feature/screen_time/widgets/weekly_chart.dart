@@ -5,11 +5,13 @@ import '../data/usage_data.dart';
 
 class WeeklyChart extends StatelessWidget {
   final UsageData usageData;
+  final VoidCallback onRefresh;
 
   const WeeklyChart({
-    Key? key,
+    super.key,
     required this.usageData,
-  }) : super(key: key);
+    required this.onRefresh,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -31,6 +33,8 @@ class WeeklyChart extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildHeader(),
+          const SizedBox(height: 15),
+          _buildProgressBar(),
           const SizedBox(height: 20),
           _buildChart(),
         ],
@@ -39,38 +43,95 @@ class WeeklyChart extends StatelessWidget {
   }
 
   Widget _buildHeader() {
+    final double weeklyTotal = usageData.weeklyEmissions.fold(0.0, (sum, value) => sum + value);
+    final double dailyTarget = usageData.dailyCarbonLimit;
+    final double weeklyTarget = dailyTarget * 7;
+    final bool isOverLimit = weeklyTotal > weeklyTarget;
+    
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          'Weekly carbon emission',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.grey[800],
-          ),
-        ),
         Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Daily average emission',
+              'Weekly carbon emission',
               style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[600],
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[800] ?? Colors.grey,
               ),
             ),
+            const SizedBox(height: 5),
             Text(
-              '${usageData.averageDailyEmissions.toStringAsFixed(1)}g CO₂',
+              'Daily average',
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.green[600],
-                fontWeight: FontWeight.w600,
+                color: Colors.grey[500] ?? Colors.grey,
+                fontWeight: FontWeight.w400,
+              ),
+            ),
+            const SizedBox(height: 5),
+            Text.rich(
+              TextSpan(
+                text: '${(weeklyTotal / DateTime.now().weekday).toStringAsFixed(1)} g',
+                style: TextStyle(
+                  fontSize: 20,
+                  color: isOverLimit ? (Colors.red[600] ?? Colors.red) : (Colors.green[600] ?? Colors.green),
+                  fontWeight: FontWeight.w800,
+                ),
+                children: [
+                  TextSpan(
+                    text: ' / ${dailyTarget.toStringAsFixed(1)} g CO₂',
+                    style: TextStyle(
+                      fontSize: 20,
+                      color: Colors.grey[700] ?? Colors.grey,
+                      fontWeight: FontWeight.w300,
+                    ),
+                  )
+                ],
               ),
             ),
           ],
         ),
+        IconButton(
+          onPressed: onRefresh,
+          icon: Icon(
+            Icons.refresh,
+            color: Colors.grey[600] ?? Colors.grey,
+            size: 20,
+          ),
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(
+            minWidth: 32,
+            minHeight: 32,
+          ),
+        ),
       ],
+    );
+  }
+
+  Widget _buildProgressBar() {
+    final double weeklyTotal = usageData.weeklyEmissions.fold(0.0, (sum, value) => sum + value);
+    final double weeklyTarget = usageData.dailyCarbonLimit * 7;
+    final bool isOverLimit = weeklyTotal > weeklyTarget;
+    
+    return Container(
+      height: 6,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(3),
+        color: Colors.grey[200],
+      ),
+      child: FractionallySizedBox(
+        alignment: Alignment.centerLeft,
+        widthFactor: (weeklyTotal / weeklyTarget).clamp(0.0, 1.0),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(3),
+            color: isOverLimit ? Colors.red[400] : Colors.green[400],
+          ),
+        ),
+      ),
     );
   }
 
@@ -84,6 +145,7 @@ class WeeklyChart extends StatelessWidget {
           lineTouchData: LineTouchData(
             enabled: true,
             touchTooltipData: LineTouchTooltipData(
+              tooltipBgColor: const Color(0xFF424242), // Colors.grey[800]과 동일
               tooltipRoundedRadius: 8,
               tooltipPadding: const EdgeInsets.all(8),
               getTooltipItems: (List<LineBarSpot> touchedSpots) {
@@ -92,7 +154,7 @@ class WeeklyChart extends StatelessWidget {
                   if (dayIndex >= 0 && dayIndex < usageData.weekDays.length) {
                     return LineTooltipItem(
                       '${usageData.weekDays[dayIndex]}\n'
-                      '${touchedSpot.y.toStringAsFixed(1)}g CO₂',
+                      '${touchedSpot.y.toStringAsFixed(1)} g CO₂',
                       const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -175,13 +237,7 @@ class WeeklyChart extends StatelessWidget {
               sideTitles: SideTitles(showTitles: false),
             ),
           ),
-          borderData: FlBorderData(
-            show: true,
-            border: Border.all(
-              color: Colors.grey[300]!,
-              width: 1,
-            ),
-          ),
+          borderData: FlBorderData(show: false),
           lineBarsData: [
             _createLineChartBarData(),
           ],
@@ -205,7 +261,7 @@ class WeeklyChart extends StatelessWidget {
       dotData: FlDotData(
         show: true,
         getDotPainter: (spot, percent, barData, index) {
-          final bool isToday = index == 6;
+          final bool isToday = index == (DateTime.now().weekday - 1);
           return FlDotCirclePainter(
             radius: isToday ? 6 : 4,
             color: isToday ? Colors.green[700]! : Colors.white,
@@ -243,6 +299,6 @@ class WeeklyChart extends StatelessWidget {
 
   double _calculateGridInterval() {
     final double maxY = _calculateMaxY();
-    return maxY / 5;
+    return maxY / 6;
   }
 }

@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 import 'feature/screen_time/screen_time_screen.dart';
 
-void main() {
+void main() async {
   runApp(MyApp());
 }
 

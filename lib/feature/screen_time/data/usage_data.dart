@@ -117,26 +117,26 @@ class UsageData {
 
   Future<UsageData> updateDailyLimit(double newLimit) async {
     try {
-      // 1. daily_usage.json 파일 경로 가져오기
+      // 1. getting daily_usage.json path
       Directory appDocDir = await getApplicationDocumentsDirectory();
       String filePath = '${appDocDir.path}/daily_usage.json';
       File file = File(filePath);
       
-      // 2. 기존 JSON 데이터 읽기
+      // 2. read JSON data
       Map<String, dynamic> jsonData;
       String jsonString = await file.readAsString();
       jsonData = json.decode(jsonString);
       
-      // 3. dailyCarbonLimit 업데이트
+      // 3. update dailyCarbonLimit
       jsonData['dailyCarbonLimit'] = newLimit;
       
-      // 4. JSON 파일에 저장
+      // 4. saving updatd JSON file
       String updatedJson = json.encode(jsonData);
       await file.writeAsString(updatedJson);
       
       print('Daily limit updated to $newLimit and saved to JSON');
       
-      // 5. 새로운 UsageData 객체 반환
+      // 5. return new data
       return UsageData(
         dailyEmissions: dailyEmissions,
         timeLabels: timeLabels,
@@ -161,17 +161,17 @@ class UsageData {
 
   Future<UsageData> updateAppLimit(String appId, double newLimit) async {
     try {
-      // 1. app_list.json 파일 경로 가져오기
+      // 1. getting app_list.json path
       Directory appDocDir = await getApplicationDocumentsDirectory();
       String filePath = '${appDocDir.path}/app_list.json';
       File file = File(filePath);
       
-      // 2. 기존 JSON 데이터 읽기
+      // 2. read JSON data
       Map<String, dynamic> jsonData;
       String jsonString = await file.readAsString();
       jsonData = json.decode(jsonString);
       
-      // 3. 해당 앱의 defaultLimit 업데이트
+      // 3. update defaultLimit
       List<dynamic> apps = jsonData['apps'];
       bool appFound = false;
       
@@ -187,11 +187,11 @@ class UsageData {
         print('App $appId not found in JSON');
       }
       
-      // 4. JSON 파일에 저장
+      // 4. saving updated JSON file
       String updatedJson = json.encode(jsonData);
       await file.writeAsString(updatedJson);
       
-      // 5. AppInfoData의 메모리 데이터도 업데이트
+      // 5. update AppInfoData
       if (AppInfoData.appMetadata.containsKey(appId)) {
         AppInfoData.appMetadata[appId] = AppMetadata(
           packageName: AppInfoData.appMetadata[appId]!.packageName,
@@ -203,7 +203,7 @@ class UsageData {
       
       print('App limit for $appId updated to $newLimit and saved to JSON');
       
-      // 6. 업데이트된 AppInfo 리스트 생성
+      // 6. generate updated list
       final updatedApps = appInfos.map((app) {
         if (app.id == appId) {
           return app.updateLimit(newLimit);
@@ -211,7 +211,7 @@ class UsageData {
         return app;
       }).toList();
       
-      // 7. 새로운 UsageData 객체 반환
+      // 7. return new data
       return UsageData(
         dailyEmissions: dailyEmissions,
         timeLabels: timeLabels,
@@ -223,7 +223,7 @@ class UsageData {
       
     } catch (e) {
       print('Error updating app limit: $e');
-      // 에러 시 메모리만 업데이트
+      // update just memory when error
       final updatedApps = appInfos.map((app) {
         if (app.id == appId) {
           return app.updateLimit(newLimit);
@@ -251,7 +251,7 @@ class UsageData {
     List<double> weeklyEmissions = await AppInfoData.createWeeklyEmissionsFromJson();
     Map<String, dynamic> dailyData = await AppInfoData.loadDailyUsageData();
     
-    // dailyCarbonLimit과 timeLabels 가져오기
+    // get dailyCarbonLimit adnd timeLabels
     double dailyCarbonLimit = dailyData['dailyCarbonLimit']?.toDouble();
     
     print('Data loaded: ${appInfos.length} apps, ${dailyEmissions.length} time slots');

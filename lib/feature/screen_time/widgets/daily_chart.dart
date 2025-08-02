@@ -71,16 +71,16 @@ class DailyChart extends StatelessWidget {
             const SizedBox(height: 5),
             Text.rich(
               TextSpan(
-                text: '${usageData.totalDailyEmissions.toStringAsFixed(1)}g / ',
+                text: '${usageData.totalDailyEmissions.toStringAsFixed(1)} g',
                 style: TextStyle(
-                  fontSize: 14,
-                  color: isOverLimit ? Colors.red[700] : Colors.green[700],
-                  fontWeight: FontWeight.w500),
+                  fontSize: 20,
+                  color: isOverLimit ? Colors.red[600] : Colors.green[600],
+                  fontWeight: FontWeight.w800),
                 children: [
                   TextSpan(
-                    text: '${usageData.dailyCarbonLimit.toStringAsFixed(1)}g CO₂',
+                    text: ' / ${usageData.dailyCarbonLimit.toStringAsFixed(1)} g CO₂',
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 20,
                       color: Colors.grey[700],
                       fontWeight: FontWeight.w300),
                   )
@@ -143,7 +143,7 @@ class DailyChart extends StatelessWidget {
               getTooltipItem: (group, groupIndex, rod, rodIndex) {
                 return BarTooltipItem(
                   '${usageData.timeLabels[group.x.toInt()]}\n'
-                  '${rod.toY.toStringAsFixed(1)}g CO₂',
+                  '${rod.toY.toStringAsFixed(1)} g CO₂',
                   const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
