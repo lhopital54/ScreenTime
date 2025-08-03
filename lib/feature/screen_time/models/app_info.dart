@@ -1,10 +1,10 @@
 // features/screen_time/models/app_info.dart
-import 'package:flutter/material.dart';
+import 'dart:typed_data';
 
 class AppInfo {
   String id; // packageName
   String name; // displayName
-  IconData icon; // 일단 기본아이콘 가져오기
+  Uint8List? icon; // general and image both
   double currentUsage; // minute
   double emitRate; // g CO2/hour
   double limit; // limit g CO2/day)

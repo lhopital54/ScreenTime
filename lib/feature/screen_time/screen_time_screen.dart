@@ -192,7 +192,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
     setState(() {
       usageData = data;
     });
-    await AppInfoData.refreshWeeklyUsageData();
+    await AppInfoData.getWeeklyUsageJson();
     WeeklyInsightsWidget.refreshInsights();
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -338,7 +338,8 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
           AppLimit(
             appInfos: usageData!.appInfos,
             onAppTap: _showAppLimitDialog,
-          ),
+            onAppAdded: _refreshUsageData
+          )
         ],
       ),
     );
@@ -353,7 +354,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
           WeeklyChart(
             usageData: usageData!,
             onRefresh: () {
-              AppInfoData.refreshWeeklyUsageData();
+              AppInfoData.getWeeklyUsageJson();
             }
           ),
           const SizedBox(height: 20),
@@ -523,6 +524,13 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
                 ],
               ),
               actions: [
+                TextButton(
+                  onPressed: () async {
+                    await AppInfoData.removeApp(app.id);
+                    Navigator.of(context).pop();
+                  },
+                  child: Text('Stop Tracking', style: TextStyle(color: Colors.red[600]))
+                  ),
                 TextButton(
                   onPressed: () {
                     Navigator.of(context).pop();

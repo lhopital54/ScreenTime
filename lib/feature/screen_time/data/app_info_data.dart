@@ -1,9 +1,9 @@
 // features/screen_time/data/app_info_data.dart
 import 'package:path_provider/path_provider.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:usage_stats/usage_stats.dart';
-// import 'package:device_apps/device_apps.dart';
+import 'package:installed_apps/installed_apps.dart' as ia;
+import 'package:installed_apps/app_info.dart' as ia;
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -11,7 +11,7 @@ import '../models/app_info.dart';
 
 class AppInfoData {
   static Map<String, AppMetadata> appMetadata = {};
-  static Map<String, Uint8List?> appIcons = {}; // 실제 앱 아이콘 캐시
+  static Map<String, Uint8List?> appIcons = {};
 
   static Future<void> loadAppList() async {
     Directory appDocDir = await getApplicationDocumentsDirectory();
@@ -40,41 +40,29 @@ class AppInfoData {
   
   static Future<void> _loadAppIcons() async {  // not working...............
     for (String packageName in appMetadata.keys) {
-      // try {
-      //   Application? app = await DeviceApps.getApp(packageName, true);
-      //   if (app != null && app is ApplicationWithIcon) {
-      //     appIcons[packageName] = app.icon;
-      //     print('Loaded icon for $packageName');
-      //   } else {
-      //     appIcons[packageName] = null;
-      //     print('No icon found for $packageName');
-      //   }
-      // } catch (e) {
-      //   print('Error loading icon for $packageName: $e');
+      try {
+        ia.AppInfo? app = await ia.InstalledApps.getAppInfo(packageName, null);
+        if (app != null) {
+          appIcons[packageName] = app.icon;
+          print('Loaded icon for $packageName');
+        } else {
+          appIcons[packageName] = null;
+          print('No icon found for $packageName');
+        }
+      } catch (e) {
+        print('Error loading icon for $packageName: $e');
         appIcons[packageName] = null;
-      // }
+      }
     }
   }
 
-    static Widget getAppIcon(String packageName, {double size = 40}) {
-    Uint8List? iconData = appIcons[packageName];
+  static Uint8List? getAppIcon(String packageName, {double size = 40}) {
+  Uint8List? iconData = appIcons[packageName];
     
     if (iconData != null) {
-      return Image.memory(
-        iconData,
-        width: size,
-        height: size,
-        fit: BoxFit.cover,
-      );
+      return iconData;
     } else {
-      IconData defaultIcon;
-      defaultIcon = Icons.apps;
-      
-      return Icon(
-        defaultIcon,
-        size: size,
-        color: Colors.grey[600],
-      );
+      return null;
     }
   }
 
@@ -88,14 +76,16 @@ class AppInfoData {
     return AppInfo(
       packageName,
       displayName,
-      Icons.apps, // dummy icon
+      getAppIcon(packageName),
       usageMinutes,
       emitRate,
       defaultLimit,
     );
   }
 
-    static Future<void> addApp({
+  // AppInfoData.dart에서 addApp 메서드 수정
+
+  static Future<void> addApp({
     required String packageName,
     required String displayName,
     required double emitRate,
@@ -103,12 +93,13 @@ class AppInfoData {
   }) async {
     try {
       Directory appDocDir = await getApplicationDocumentsDirectory();
-      File file = File('${appDocDir.path}/app_list.json');
-    
-      String jsonString = await file.readAsString();
-      Map<String, dynamic> jsonData = json.decode(jsonString);
       
-      List<dynamic> apps = jsonData['apps'];
+      // 1. app_list.json에 추가
+      File appListFile = File('${appDocDir.path}/app_list.json');
+      String appListJson = await appListFile.readAsString();
+      Map<String, dynamic> appListData = json.decode(appListJson);
+      
+      List<dynamic> apps = appListData['apps'];
       apps.add({
         'packageName': packageName,
         'displayName': displayName,
@@ -116,6 +107,38 @@ class AppInfoData {
         'defaultLimit': defaultLimit,
       });
       
+      await appListFile.writeAsString(const JsonEncoder.withIndent('  ').convert(appListData));
+      
+      // 2. daily_usage.json에 추가
+      File dailyFile = File('${appDocDir.path}/daily_usage.json');
+      String dailyJson = await dailyFile.readAsString();
+      Map<String, dynamic> dailyData = json.decode(dailyJson);
+      
+      List<dynamic> dailyApps = dailyData['apps'] ?? [];
+      dailyApps.add({
+        'id': packageName,
+        'usageBySlot': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        'totalUsage': 0.0,
+      });
+      
+      dailyData['apps'] = dailyApps;
+      await dailyFile.writeAsString(const JsonEncoder.withIndent('  ').convert(dailyData));
+      
+      // 3. weekly_usage.json에 추가
+      File weeklyFile = File('${appDocDir.path}/weekly_usage.json');
+      String weeklyJson = await weeklyFile.readAsString();
+      Map<String, dynamic> weeklyData = json.decode(weeklyJson);
+      
+      List<dynamic> weeklyApps = weeklyData['apps'] ?? [];
+      weeklyApps.add({
+        'id': packageName,
+        'weeklyUsage': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      });
+      
+      weeklyData['apps'] = weeklyApps;
+      await weeklyFile.writeAsString(const JsonEncoder.withIndent('  ').convert(weeklyData));
+      
+      // 4. 메모리에 추가
       appMetadata[packageName] = AppMetadata(
         packageName: packageName,
         displayName: displayName,
@@ -123,28 +146,68 @@ class AppInfoData {
         defaultLimit: defaultLimit,
       );
       
-      // try {
-      //   Application? app = await DeviceApps.getApp(packageName, true);
-      //   if (app != null && app is ApplicationWithIcon) {
-      //     appIcons[packageName] = app.icon;
-      //   }
-      // } catch (e) {
-        appIcons[packageName] = null;
-      // }
-      
-      print('Added app: $displayName ($packageName)');
+      print('Successfully added app: $displayName');
+
+      await getDailyUsageJson();
+      await getWeeklyUsageJson();
       
     } catch (e) {
       print('Error adding app: $e');
+      rethrow;
     }
   }
   
   // remove app from json
-  static void removeApp(String packageName) {
+static Future<void> removeApp(String packageName) async {
+  try {
+    print('Removing app: $packageName');
+
+    // 1. delete app_list.json
+    Directory appDocDir = await getApplicationDocumentsDirectory();
+    File appListFile = File('${appDocDir.path}/app_list.json');
+    String appListJson = await appListFile.readAsString();
+    Map<String, dynamic> appListData = json.decode(appListJson);
+    
+    List<dynamic> apps = appListData['apps'];
+    apps.removeWhere((app) => app['packageName'] == packageName);
+    
+    await appListFile.writeAsString(const JsonEncoder.withIndent('  ').convert(appListData));
+
+    // 2. delete daily_usage.json
+    File dailyFile = File('${appDocDir.path}/daily_usage.json');
+    String dailyJson = await dailyFile.readAsString();
+    Map<String, dynamic> dailyData = json.decode(dailyJson);
+    
+    List<dynamic> dailyApps = dailyData['apps'] ?? [];
+    dailyApps.removeWhere((app) => app['id'] == packageName);
+    
+    dailyData['apps'] = dailyApps;
+    await dailyFile.writeAsString(const JsonEncoder.withIndent('  ').convert(dailyData));
+    
+    // 3. delete weekly_usage.json
+    File weeklyFile = File('${appDocDir.path}/weekly_usage.json');
+    String weeklyJson = await weeklyFile.readAsString();
+    Map<String, dynamic> weeklyData = json.decode(weeklyJson);
+    
+    List<dynamic> weeklyApps = weeklyData['apps'] ?? [];
+    weeklyApps.removeWhere((app) => app['id'] == packageName);
+    
+    weeklyData['apps'] = weeklyApps;
+    await weeklyFile.writeAsString(const JsonEncoder.withIndent('  ').convert(weeklyData));
+    
     appMetadata.remove(packageName);
     appIcons.remove(packageName);
-    print('Removed app: $packageName');
+    
+    print('Successfully removed app: $packageName');
+
+    await getDailyUsageJson();
+    await getWeeklyUsageJson();
+    
+  } catch (e) {
+    print('Error removing app: $e');
+    rethrow;
   }
+}
 
   // check and request permission(for usage_stats)
   static Future<bool> checkUsagePermission() async {
@@ -185,6 +248,7 @@ class AppInfoData {
     final dayStart = DateTime(date.year, date.month, date.day, 0, 0);
     final dayEnd   = dayStart.add(const Duration(days: 1));
     final appIds   = await loadAppIds();
+    print(appIds);
 
     Map<String, dynamic> dailyData = await loadDailyUsageData();
     double dailyCarbonLimit = dailyData['dailyCarbonLimit']?.toDouble() ?? 100.0;
@@ -428,8 +492,6 @@ class AppInfoData {
     final dayStart = DateTime(date.year, date.month, date.day, 0, 0);
     final dayEnd = dayStart.add(const Duration(days: 1));
     
-    print('Getting usage data for ${date.toIso8601String().substring(0, 10)}');
-    
     final allEvents = await UsageStats.queryEvents(dayStart, dayEnd);
     
     final eventsByApp = <String, List<dynamic>>{
@@ -528,10 +590,6 @@ class AppInfoData {
     }
   }
 
-  static Future<void> refreshWeeklyUsageData() async {
-    await getWeeklyUsageJson();
-  }
-
   // ------------------------------
   // loading data from json
   // ------------------------------
@@ -542,6 +600,7 @@ class AppInfoData {
     
       String jsonString = await file.readAsString();
       Map<String, dynamic> jsonData = json.decode(jsonString);
+      print(jsonData);
       return jsonData;
     } catch (e) {
       print('Error loading daily usage data: $e');
@@ -556,6 +615,7 @@ class AppInfoData {
 
       String jsonString = await file.readAsString();
       Map<String, dynamic> jsonData = json.decode(jsonString);
+      print(jsonData);
       return jsonData;
     } catch (e) {
       print('Error loading daily usage data: $e');
@@ -616,7 +676,7 @@ class AppInfoData {
         double usageMinutes = usageBySlot[i]?.toDouble() ?? 0.0;
         double hours = usageMinutes / 60;
         double emission = hours * emitRate;
-        dailyEmissions[i] = emission;
+        dailyEmissions[i] += emission;
       }
     }
     
@@ -656,7 +716,7 @@ class AppInfoData {
 
   static List<AppInfo> createSampleApps() {
     return [
-      AppInfo('com.google.android.youtube', 'YouTube', Icons.play_circle_fill, 0.0, 170.0, 200.0),
+      AppInfo('com.google.android.youtube', 'YouTube', null, 0.0, 170.0, 200.0),
     ];
   }
 }
